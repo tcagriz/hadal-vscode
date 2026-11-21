@@ -16,4 +16,4 @@ jobs:
         with:
           node-version: 22
       - name: Publish extension
-        run: npx --yes @vscode/vsce@4.1.1 publish --oidc
+        run: npx --yes @vscode/vsce@4.1.1 publish --oidc --skip-duplicate
