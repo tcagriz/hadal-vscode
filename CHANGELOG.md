@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Refresh the Marketplace README with installation, requirements, update, support and
+  license information.
+
 ## 0.1.1
 
 - Update Marketplace installation and publishing documentation.
