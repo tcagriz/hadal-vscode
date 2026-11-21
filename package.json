@@ -4,7 +4,12 @@
   "description": "Deep blue dark theme, based on the VS Code Abyss color theme.",
   "version": "0.1.0",
   "publisher": "tcagriz",
+  "author": "tcagriz",
   "license": "MIT",
+  "galleryBanner": {
+    "color": "#000c18",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/tcagriz/hadal-vscode.git"

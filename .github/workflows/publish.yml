@@ -1,0 +1,19 @@
+name: Publish to VS Code Marketplace
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publish extension
+        run: npx --yes @vscode/vsce@4.1.1 publish --oidc
