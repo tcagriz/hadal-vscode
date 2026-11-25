@@ -20,6 +20,8 @@
   issue explicitly changes the supported version.
 - Keep the extension ID, publisher, version, changelog, README and release
   workflow consistent.
+- Follow `RELEASING.md` for tag-driven package releases. Never add a manual
+  publication path or republish by moving/deleting an immutable release tag.
 - Preserve workbench, editor, syntax, semantic-token and terminal coverage.
 - Do not introduce one-off colors that bypass the shared Hadal palette.
 - Never commit Marketplace credentials, tokens or OIDC configuration values.
@@ -31,6 +33,7 @@ Run from the extension root:
 ```sh
 python3 -m json.tool package.json > /dev/null
 python3 -m json.tool themes/hadal-color-theme.json > /dev/null
+python3 tests/publish_workflow_test.py
 npx --yes @vscode/vsce@4.1.1 package --out /tmp/hadal-theme.vsix
 ```
 

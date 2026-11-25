@@ -15,5 +15,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - name: Verify release workflow
+        run: python3 tests/publish_workflow_test.py
       - name: Package extension
         run: npx --yes @vscode/vsce@4.1.1 package --out /tmp/hadal-theme.vsix
