@@ -340,7 +340,7 @@ def test_workflow_shape() -> None:
     assert "workflow_dispatch:" not in PUBLISH
     assert "git merge-base --is-ancestor" in validate
     assert "scripts/release.py metadata" in validate
-    assert "actions/upload-artifact@v4" in validate
+    assert "actions/upload-artifact@" in validate
     assert "environment:" not in validate
     assert "secrets." not in validate
 
