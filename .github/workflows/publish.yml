@@ -1,23 +1,133 @@
 name: Publish to VS Code Marketplace
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
 
 permissions:
   contents: read
-  id-token: write
+
+concurrency:
+  group: release-${{ github.repository }}-${{ github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      package: ${{ steps.metadata.outputs.package }}
+      identifier: ${{ steps.metadata.outputs.identifier }}
+      version: ${{ steps.metadata.outputs.version }}
+      artifact: ${{ steps.metadata.outputs.artifact }}
+      title: ${{ steps.metadata.outputs.title }}
+      sha256: ${{ steps.artifact.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify release metadata
+        id: metadata
+        run: |
+          python3 scripts/release.py metadata \
+            --kind vscode \
+            --tag "$GITHUB_REF_NAME" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Verify tag is on main
+        run: |
+          git fetch --quiet origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: Package extension
+        run: |
+          mkdir -p dist
+          npx --yes @vscode/vsce@4.1.1 package \
+            --out "dist/${{ steps.metadata.outputs.artifact }}"
+      - name: Fingerprint package
+        id: artifact
+        run: |
+          python3 scripts/release.py fingerprint \
+            --artifact "dist/${{ steps.metadata.outputs.artifact }}" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Upload validated package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: dist/${{ steps.metadata.outputs.artifact }}
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      sha256: ${{ steps.release.outputs.sha256 }}
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Download validated package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: dist
+      - name: Attach validated package to release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/release.py ensure-release \
+            --repo "$GITHUB_REPOSITORY" \
+            --tag "$GITHUB_REF_NAME" \
+            --title "Hadal VS Code ${{ needs.validate.outputs.version }}" \
+            --artifact "dist/${{ needs.validate.outputs.artifact }}" \
+            --sha256 "${{ needs.validate.outputs.sha256 }}" \
+            --github-output "$GITHUB_OUTPUT"
+
   publish:
-    if: github.ref == 'refs/heads/main'
+    needs:
+      - validate
+      - release
     runs-on: ubuntu-latest
     environment:
       name: production
       url: https://marketplace.visualstudio.com/items?itemName=tcagriz.hadal-theme
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - name: Download immutable release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          python3 scripts/release.py download-asset \
+            --repo "$GITHUB_REPOSITORY" \
+            --tag "$GITHUB_REF_NAME" \
+            --asset "${{ needs.validate.outputs.artifact }}" \
+            --sha256 "${{ needs.release.outputs.sha256 }}" \
+            --output "dist/${{ needs.validate.outputs.artifact }}"
+      - name: Check published version
+        id: marketplace
+        run: |
+          python3 scripts/release.py marketplace-status \
+            --identifier "${{ needs.validate.outputs.identifier }}" \
+            --version "${{ needs.validate.outputs.version }}" \
+            --sha256 "${{ needs.release.outputs.sha256 }}" \
+            --github-output "$GITHUB_OUTPUT"
       - name: Publish extension
-        run: npx --yes @vscode/vsce@4.1.1 publish --oidc --skip-duplicate
+        if: steps.marketplace.outputs.published != 'true'
+        run: |
+          npx --yes @vscode/vsce@4.1.1 publish \
+            --packagePath "dist/${{ needs.validate.outputs.artifact }}" \
+            --oidc \
+            --skip-duplicate

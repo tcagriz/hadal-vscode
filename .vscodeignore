@@ -1,4 +1,7 @@
 .vscodeignore
 .gitignore
 .github/**
+scripts/**
+tests/**
+RELEASING.md
 *.vsix
